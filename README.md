@@ -206,6 +206,39 @@ uv sync --group dev
 - pydantic >= 2.11.7
 - litellm >= 1.76.0
 
+## Built-in Rubrics
+
+### Conversation Annotation (`trajectory`)
+
+Annotates agent conversations with 16+ features covering task metadata, agent behavioral issues, and infrastructure problems. Works with OpenAI-format message histories.
+
+```python
+from critic_rubrics.rubrics.trajectory import annotate_conversation_rubrics
+
+request = annotate_conversation_rubrics.create_annotation_request({
+    "messages": [...],  # OpenAI-format conversation messages
+    "tools": [...]      # Tool schemas available to the agent
+})
+```
+
+### Function Localization Scoring (`func_localize`)
+
+Scores codebase navigation trajectories on 3 dimensions (1-5 each): structure discovery, file localization, and function localization. Works with OpenHands history format.
+
+```python
+from critic_rubrics.rubrics.func_localize import func_localize_rubrics
+
+# Pass a trajectory record with 'history' (OpenHands format)
+request = func_localize_rubrics.create_annotation_request(trajectory_data)
+response = Annotator.annotate(request, model="gpt-4o-mini", api_key="...")
+tool_call = response.choices[0].message.tool_calls[0].model_dump()
+features = func_localize_rubrics.tool_call_to_feature_data(tool_call)
+
+for fd in features:
+    pred = fd.prediction.to_dict()
+    print(f"{fd.feature.name}: {pred}")
+```
+
 ## Example: Complete Workflow
 
 ```python
