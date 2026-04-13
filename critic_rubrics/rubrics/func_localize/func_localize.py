@@ -42,8 +42,8 @@ For each of the 3 dimensions, provide:
 
 Dimensions to evaluate:
 1. structure_discovery — Did the agent explore the repo's directory structure (e.g., ls, tree) before searching? Merely counting files does not count.
-2. file_localization — Did the agent use targeted keywords to find the right file, switching strategy when searches failed?
-3. function_localization — Did the agent narrow down to the exact target within candidate files?
+2. file_localization — Did the agent use targeted keywords to find the right file, switching strategy when searches failed? It should keep searching for new keywords until the set of candidate files is limited.
+3. function_localization — Did the agent narrow down to the exact target within candidate files? It should use keyword searching to determine the exact line where the function is located.
 """
 
 FEATURES = [
@@ -58,12 +58,18 @@ FEATURES = [
     ),
     Feature(
         name="file_localization",
-        description="Did the agent use targeted keywords to find the right file, switching strategy when initial searches failed? Score 1-5.",
+        description=(
+            "Did the agent use targeted keywords to find the right file, switching strategy when initial searches failed? "
+            "It should keep searching for new keywords until the set of candidate files is limited to a small number. Score 1-5."
+        ),
         prediction_type=ScorePrediction,
     ),
     Feature(
         name="function_localization",
-        description="Did the agent narrow down to the exact target function/class within candidate files? Score 1-5.",
+        description=(
+            "Did the agent narrow down to the exact target function/class within candidate files? "
+            "It should use keyword searching to determine the exact line where the function is located. Score 1-5."
+        ),
         prediction_type=ScorePrediction,
     ),
 ]
