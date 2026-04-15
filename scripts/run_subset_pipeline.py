@@ -190,7 +190,7 @@ def main():
     print(f"Success: {len(ok)}/{len(fl_results)}")
     if ok:
         print("\nScore summary across instances:")
-        rule_names = ["structure_discovery", "file_localization", "function_localization"]
+        rule_names = ["workflow_adherence", "file_localization", "function_localization", "effective_file_editing", "tool_call_correctness"]
         for rule in rule_names:
             vals = []
             for r in ok:

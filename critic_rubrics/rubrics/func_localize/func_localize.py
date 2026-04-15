@@ -1,8 +1,9 @@
 """Function localization rubric: scoring rubric for code navigation trajectories.
 
-Transferred from OpenHands2/evaluation/auto_prompt. Evaluates agent trajectories
-on three dimensions of codebase navigation: structure discovery, file localization,
-and function localization.
+Evaluates agent trajectories on 5 dimensions across three levels:
+  - Stage-level: workflow_adherence
+  - Strategy-level: file_localization, function_localization, effective_file_editing
+  - Action-level: tool_call_correctness
 """
 
 from typing import Literal
@@ -13,62 +14,118 @@ from ...prediction import ClassificationPrediction
 
 ScorePrediction = ClassificationPrediction[Literal["1", "2", "3", "4", "5"]]
 
-SCORING_SYSTEM_MESSAGE = """You are an expert evaluator of AI coding agent trajectories. You will analyze an agent's behavior across 3 dimensions of codebase navigation quality.
+SCORING_SYSTEM_MESSAGE = """You are an expert evaluator of AI coding agent trajectories. You will analyze an agent's behavior across 5 dimensions at three evaluation levels (stage, strategy, action).
 
 ========================
-SCORING SCALE
+SCORING PHILOSOPHY
 ========================
-For each rule, assign a score from 1 to 5:
-- 1: Major violation — agent completely ignored this dimension
-- 2: Significant gap — agent skipped important steps or fell into repeated loops
-- 3: Adequate — agent followed the general flow but with notable deviations
-- 4: Good — agent performed well with only minor deviations
-- 5: Excellent — agent closely followed best practices for this dimension
+For each dimension, score from 1 (worst) to 5 (best) based on how well the agent's
+behavior matches the desirable qualities and avoids the undesirable ones described below.
+Use your judgment — no fixed rubric table is provided for each score level.
 
 ========================
 QUALITY STANDARDS
 ========================
 - Evidence-based: Reference specific agent actions (step numbers, commands, files).
-- Conservative: When evidence is ambiguous, lean toward the middle score (3).
+- Use the full 1-5 range as you see fit based on the criteria described.
 """
 
 SCORING_INSTRUCTION_MESSAGE = """=== END OF AGENT TRAJECTORY ===
 
 Score the agent's behavior by calling the score_trajectory function.
 
-For each of the 3 dimensions, provide:
+For each of the 5 dimensions, provide:
 1) A score from "1" to "5" (as a string)
 2) A brief rationale referencing specific steps
 
-Dimensions to evaluate:
-1. structure_discovery — Did the agent explore the repo's directory structure (e.g., ls, tree) before searching? Merely counting files does not count.
-2. file_localization — Did the agent use targeted keywords to find the right file, switching strategy when searches failed? It should keep searching for new keywords until the set of candidate files is limited.
-3. function_localization — Did the agent narrow down to the exact target within candidate files? It should use keyword searching to determine the exact line where the function is located.
+─────────────────────────────────────────
+Dimension 1: workflow_adherence (stage-level)
+─────────────────────────────────────────
+Does the agent follow a logical progression: locate candidate file(s) → locate code
+lines in the file(s) → understand the code?
+
+Desirable: clear, ordered stages where each builds on the previous; no stage is skipped.
+Undesirable: jumping around without progression, skipping stages, or repeating stages unnecessarily.
+
+─────────────────────────────────────────
+Dimension 2: file_localization (strategy-level)
+─────────────────────────────────────────
+How effectively does the agent locate the relevant file(s)?
+
+Desirable: uses targeted keyword searches, tries alternative terms when initial searches fail,
+narrows candidate files to a small set before reading them.
+Undesirable: guesses file paths without searching, uses only one keyword and never iterates,
+proceeds with a large candidate set.
+
+─────────────────────────────────────────
+Dimension 3: function_localization (strategy-level)
+─────────────────────────────────────────
+How effectively does the agent pinpoint the exact target function/class within files?
+
+Desirable: uses keyword search to find the exact line of the target, reads only a focused
+region around it, confirms the match (e.g., checking the signature).
+Undesirable: reads entire files blindly without prior search, reads large chunks without
+narrowing to the relevant section.
+
+─────────────────────────────────────────
+Dimension 4: effective_file_editing (strategy-level)
+─────────────────────────────────────────
+How well does the agent approach the editing process?
+
+Desirable: reads the target code before editing, reasons about what to change, makes
+precise and correct edits, verifies the result by re-reading the modified section.
+Undesirable: edits without reading the code first, makes imprecise or incorrect changes,
+skips verification after editing.
+
+─────────────────────────────────────────
+Dimension 5: tool_call_correctness (action-level)
+─────────────────────────────────────────
+Does the agent use file-edit and other tools correctly without errors?
+
+Desirable: tool calls succeed on the first attempt with correct arguments (file paths,
+line ranges, syntax).
+Undesirable: tool calls produce errors (wrong arguments, file not found, syntax mistakes),
+repeated failed attempts without diagnosing the cause.
 """
 
 FEATURES = [
     Feature(
-        name="structure_discovery",
+        name="workflow_adherence",
         description=(
-            "Did the agent explore the repo's directory structure (e.g., ls, tree, find with directory listing) "
-            "before searching for specific code? Merely counting files (find|wc -l) without viewing the layout "
-            "does not count. Score 1-5."
+            "Stage-level: Does the agent follow locate file(s) → locate code lines → "
+            "understand code in a clear, ordered progression?"
         ),
         prediction_type=ScorePrediction,
     ),
     Feature(
         name="file_localization",
         description=(
-            "Did the agent use targeted keywords to find the right file, switching strategy when initial searches failed? "
-            "It should keep searching for new keywords until the set of candidate files is limited to a small number. Score 1-5."
+            "Strategy-level: Does the agent use targeted keyword searches, try alternative terms "
+            "on failure, and narrow candidates to a small set before reading?"
         ),
         prediction_type=ScorePrediction,
     ),
     Feature(
         name="function_localization",
         description=(
-            "Did the agent narrow down to the exact target function/class within candidate files? "
-            "It should use keyword searching to determine the exact line where the function is located. Score 1-5."
+            "Strategy-level: Does the agent pinpoint the exact target function/class via "
+            "keyword search and read only the relevant region?"
+        ),
+        prediction_type=ScorePrediction,
+    ),
+    Feature(
+        name="effective_file_editing",
+        description=(
+            "Strategy-level: Does the agent read code before editing, make precise changes, "
+            "and verify the result?"
+        ),
+        prediction_type=ScorePrediction,
+    ),
+    Feature(
+        name="tool_call_correctness",
+        description=(
+            "Action-level: Do file-edit and other tool calls succeed without errors "
+            "(correct arguments, no syntax mistakes, no repeated failures)?"
         ),
         prediction_type=ScorePrediction,
     ),
